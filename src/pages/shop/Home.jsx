@@ -93,13 +93,15 @@ function Home() {
 
   const handleAddToCart = async (item, qty = 1) => {
     const result = await addToCart(item, qty);
-    setSmallList((prev) =>
-      prev.map((product) =>
-        product.id === item.id
-          ? { ...product, stock: result.remainingStock }
-          : product,
-      ),
-    );
+    if (!result.error) {
+      setSmallList((prev) =>
+        prev.map((product) =>
+          product.id === item.id
+            ? { ...product, stock: result.remainingStock }
+            : product,
+        ),
+      );
+    }
     if (result.addedQty <= 0) return;
   };
 

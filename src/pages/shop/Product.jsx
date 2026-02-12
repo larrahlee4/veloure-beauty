@@ -116,9 +116,11 @@ function Product() {
   const handleAddCurrentProduct = async (goToCart = false) => {
     if (!product || isSoldOut) return
     const result = await addToCart(product, qty, { source: 'product-detail' })
-    setProduct((prev) =>
-      prev ? { ...prev, stock: result.remainingStock } : prev
-    )
+    if (!result.error) {
+      setProduct((prev) =>
+        prev ? { ...prev, stock: result.remainingStock } : prev
+      )
+    }
     if (result.addedQty <= 0) return
     setLastAddedQty(result.addedQty)
     setQty(1)
@@ -132,13 +134,15 @@ function Product() {
 
   const handleAddRecommendation = async (item) => {
     const result = await addToCart(item, 1)
-    setRecommendations((prev) =>
-      prev.map((entry) =>
-        entry.id === item.id
-          ? { ...entry, stock: result.remainingStock }
-          : entry
+    if (!result.error) {
+      setRecommendations((prev) =>
+        prev.map((entry) =>
+          entry.id === item.id
+            ? { ...entry, stock: result.remainingStock }
+            : entry
+        )
       )
-    )
+    }
     if (result.addedQty <= 0) return
   }
 

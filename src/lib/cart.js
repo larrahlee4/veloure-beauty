@@ -102,12 +102,17 @@ const releaseStock = async (productId, releaseQty) => {
 
 export const addToCart = async (product, qty = 1, options = {}) => {
   const wantedQty = toPositiveInt(qty, 1)
+  const productStock = Math.max(0, Number(product?.stock || 0))
   const reserve = await reserveStock(product.id, wantedQty)
   if (reserve.error || reserve.reserved <= 0) {
+    const safeRemainingStock =
+      reserve.error && reserve.stock === 0
+        ? productStock
+        : Math.max(0, Number(reserve.stock || 0))
     return {
       items: getCart(),
       addedQty: 0,
-      remainingStock: Math.max(0, Number(reserve.stock || 0)),
+      remainingStock: safeRemainingStock,
       error: reserve.error,
     }
   }

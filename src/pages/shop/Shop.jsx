@@ -43,13 +43,15 @@ function Shop() {
 
   const handleAddToCart = async (item, qty = 1) => {
     const result = await addToCart(item, qty)
-    setProducts((prev) =>
-      prev.map((product) =>
-        product.id === item.id
-          ? { ...product, stock: result.remainingStock }
-          : product
+    if (!result.error) {
+      setProducts((prev) =>
+        prev.map((product) =>
+          product.id === item.id
+            ? { ...product, stock: result.remainingStock }
+            : product
+        )
       )
-    )
+    }
     if (result.addedQty <= 0) return
   }
 
