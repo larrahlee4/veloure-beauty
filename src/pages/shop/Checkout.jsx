@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getCart, saveCart } from '../lib/cart.js'
-import { supabase } from '../lib/supabase.js'
-import MotionButton from '../components/MotionButton.jsx'
+import { getCart, saveCart } from '../../lib/cart.js'
+import { supabase } from '../../lib/supabase.js'
+import MotionButton from '../../components/MotionButton.jsx'
 
 function Checkout() {
   const [items, setItems] = useState([])
@@ -104,7 +104,13 @@ function Checkout() {
 
     saveCart([])
     setPlacingOrder(false)
-    navigate('/profile')
+    navigate('/order-success', {
+      state: {
+        orderId: orderRow.id,
+        total,
+        itemCount: items.reduce((sum, item) => sum + item.qty, 0),
+      },
+    })
   }
 
   return (

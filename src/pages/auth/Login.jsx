@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { supabase } from '../lib/supabase.js'
-import MotionButton from '../components/MotionButton.jsx'
-import signinPhoto from '../assets/picture2.webp'
+import { supabase } from '../../lib/supabase.js'
+import MotionButton from '../../components/MotionButton.jsx'
+import signinPhoto from '../../assets/picture2.webp'
 
 function Login() {
   const [email, setEmail] = useState('')

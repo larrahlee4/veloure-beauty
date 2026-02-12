@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { supabase } from '../lib/supabase.js'
-import { addToCart } from '../lib/cart.js'
-import MotionButton from '../components/MotionButton.jsx'
+import { AnimatePresence, motion } from 'framer-motion'
+import { supabase } from '../../lib/supabase.js'
+import { addToCart } from '../../lib/cart.js'
+import MotionButton from '../../components/MotionButton.jsx'
 
 function Product() {
   const { slug } = useParams()
@@ -16,7 +17,10 @@ function Product() {
   const [qty, setQty] = useState(1)
   const [openSection, setOpenSection] = useState('how')
   const [isZoomOpen, setIsZoomOpen] = useState(false)
+  const [addedModalOpen, setAddedModalOpen] = useState(false)
+  const [lastAddedQty, setLastAddedQty] = useState(1)
   const navigate = useNavigate()
+  const isSoldOut = Number(product?.stock ?? 0) <= 0
 
   useEffect(() => {
     const load = async () => {
@@ -36,7 +40,7 @@ function Product() {
       if (data?.category) {
         const { data: recs } = await supabase
           .from('products')
-          .select('id,name,slug,price,image_url')
+          .select('id,name,slug,price,image_url,stock')
           .eq('category', data.category)
           .neq('id', data.id)
           .limit(3)
@@ -72,6 +76,17 @@ function Product() {
     return () => window.removeEventListener('keydown', onEsc)
   }, [])
 
+  useEffect(() => {
+    const stock = Math.max(0, Number(product?.stock || 0))
+    if (stock === 0) {
+      setQty(1)
+      return
+    }
+    if (qty > stock) {
+      setQty(stock)
+    }
+  }, [product?.stock, qty])
+
   const sections = useMemo(
     () => [
       {
@@ -97,6 +112,35 @@ function Product() {
     ],
     []
   )
+
+  const handleAddCurrentProduct = async (goToCart = false) => {
+    if (!product || isSoldOut) return
+    const result = await addToCart(product, qty, { source: 'product-detail' })
+    setProduct((prev) =>
+      prev ? { ...prev, stock: result.remainingStock } : prev
+    )
+    if (result.addedQty <= 0) return
+    setLastAddedQty(result.addedQty)
+    setQty(1)
+
+    if (goToCart) {
+      navigate('/cart')
+      return
+    }
+    setAddedModalOpen(true)
+  }
+
+  const handleAddRecommendation = async (item) => {
+    const result = await addToCart(item, 1)
+    setRecommendations((prev) =>
+      prev.map((entry) =>
+        entry.id === item.id
+          ? { ...entry, stock: result.remainingStock }
+          : entry
+      )
+    )
+    if (result.addedQty <= 0) return
+  }
 
   if (!checkedAuth) {
     return null
@@ -132,7 +176,7 @@ function Product() {
   return (
     <div className="space-y-12">
       <section className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr]">
-        <div className="border border-[var(--ink)] bg-[#f2f2f2] p-4">
+        <div className="bg-[#f2f2f2] p-4">
           <button
             type="button"
             onClick={() => setIsZoomOpen(true)}
@@ -144,6 +188,11 @@ function Product() {
               src={product.image_url}
               alt={product.name}
             />
+            {isSoldOut && (
+              <span className="absolute left-3 top-3 border border-white bg-black/85 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-white">
+                Sold out
+              </span>
+            )}
             <span className="absolute bottom-3 right-3 border border-[var(--ink)] bg-white/95 px-2 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--ink)]">
               Zoom
             </span>
@@ -162,7 +211,7 @@ function Product() {
             </div>
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[var(--ink)]/60">Stock</p>
-              <p className="mt-1 text-2xl font-black">{product.stock ?? 0}</p>
+              <p className="mt-1 text-2xl font-black">{isSoldOut ? 'Sold out' : product.stock ?? 0}</p>
             </div>
           </div>
 
@@ -172,7 +221,8 @@ function Product() {
               <button
                 type="button"
                 onClick={() => setQty((prev) => Math.max(1, prev - 1))}
-                className="h-10 w-11 text-lg"
+                className="h-10 w-11 text-lg disabled:opacity-40"
+                disabled={isSoldOut}
               >
                 -
               </button>
@@ -181,8 +231,9 @@ function Product() {
               </span>
               <button
                 type="button"
-                onClick={() => setQty((prev) => prev + 1)}
-                className="h-10 w-11 text-lg"
+                onClick={() => setQty((prev) => Math.min(Number(product.stock || 0), prev + 1))}
+                className="h-10 w-11 text-lg disabled:opacity-40"
+                disabled={isSoldOut || qty >= Number(product.stock || 0)}
               >
                 +
               </button>
@@ -190,21 +241,20 @@ function Product() {
           </div>
 
           <MotionButton
-            className="w-full border border-[var(--ink)] bg-white px-6 py-3 text-xl font-black uppercase tracking-[0.06em]"
-            onClick={() => addToCart(product, qty)}
+            className="w-full border border-[var(--ink)] bg-white px-6 py-3 text-xl font-black uppercase tracking-[0.06em] disabled:cursor-not-allowed disabled:border-[#b7b7b7] disabled:bg-[#d9d9d9] disabled:text-[#666] disabled:hover:bg-[#d9d9d9]"
+            onClick={() => handleAddCurrentProduct(false)}
+            disabled={isSoldOut}
           >
-            Add to bag
+            {isSoldOut ? 'Sold out' : 'Add to bag'}
           </MotionButton>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <MotionButton
-              className="border border-[var(--ink)] bg-[var(--ink)] px-6 py-3 text-sm font-black uppercase tracking-[0.12em] text-white"
-              onClick={() => {
-                addToCart(product, qty)
-                navigate('/cart')
-              }}
+              className="border border-[var(--ink)] bg-[var(--ink)] px-6 py-3 text-sm font-black uppercase tracking-[0.12em] text-white disabled:cursor-not-allowed disabled:border-[#b7b7b7] disabled:bg-[#d9d9d9] disabled:text-[#666] disabled:hover:bg-[#d9d9d9]"
+              onClick={() => handleAddCurrentProduct(true)}
+              disabled={isSoldOut}
             >
-              Buy now
+              {isSoldOut ? 'Sold out' : 'Buy now'}
             </MotionButton>
             <Link
               to="/products"
@@ -266,6 +316,75 @@ function Product() {
         </div>
       )}
 
+      <AnimatePresence>
+        {addedModalOpen && (
+          <motion.div
+            className="fixed inset-0 z-[96] flex items-center justify-center bg-black/35 p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="w-full max-w-sm border border-[var(--ink)] bg-white px-6 py-6 text-center shadow-2xl"
+              initial={{ opacity: 0, y: 16, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 12, scale: 0.98 }}
+              transition={{ duration: 0.2 }}
+            >
+              <motion.div
+                className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-[var(--ink)] bg-[var(--sand)]/25"
+                initial={{ scale: 0.9 }}
+                animate={{ scale: 1 }}
+                transition={{ duration: 0.22 }}
+              >
+                <svg
+                  width="34"
+                  height="34"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="var(--ink)"
+                  strokeWidth="2.1"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <motion.path
+                    d="m5 13 4 4L19 7"
+                    initial={{ pathLength: 0 }}
+                    animate={{ pathLength: 1 }}
+                    transition={{ duration: 0.35, ease: 'easeOut' }}
+                  />
+                </svg>
+              </motion.div>
+              <p className="text-[11px] font-black uppercase tracking-[0.25em] text-[var(--ink)]/65">
+                Added to bag
+              </p>
+              <p className="mt-2 text-sm text-[var(--ink)]/80">
+                {product.name} x{lastAddedQty}
+              </p>
+              <div className="mt-5 grid gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  className="border border-[var(--ink)] px-4 py-2 text-[11px] font-black uppercase tracking-[0.14em]"
+                  onClick={() => setAddedModalOpen(false)}
+                >
+                  Continue
+                </button>
+                <button
+                  type="button"
+                  className="border border-[var(--ink)] bg-[var(--ink)] px-4 py-2 text-[11px] font-black uppercase tracking-[0.14em] text-white"
+                  onClick={() => {
+                    setAddedModalOpen(false)
+                    navigate('/cart')
+                  }}
+                >
+                  View cart
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <section className="space-y-5">
         <div className="flex items-center justify-between gap-4">
           <div>
@@ -278,15 +397,41 @@ function Product() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
-          {recommendations.map((item) => (
-            <article key={item.id} className="border border-[var(--ink)] bg-white p-4">
-              <Link to={`/product/${item.slug}`} className="block">
-                <img className="aspect-square w-full border border-[var(--ink)] object-cover" src={item.image_url} alt={item.name} />
-                <p className="mt-3 text-lg font-black uppercase">{item.name}</p>
-              </Link>
-              <p className="mt-1 text-sm">PHP {Number(item.price || 0).toFixed(2)}</p>
-            </article>
-          ))}
+          {recommendations.map((item) => {
+            const isRecommendationSoldOut = Number(item.stock ?? 0) <= 0
+            return (
+              <article key={item.id} className="flex h-full flex-col border border-[var(--ink)] bg-white p-4">
+                <Link to={`/product/${item.slug}`} className="block">
+                  <div className="relative">
+                    <img className="aspect-square w-full object-cover" src={item.image_url} alt={item.name} />
+                    {isRecommendationSoldOut && (
+                      <span className="absolute left-3 top-3 border border-white bg-black/85 px-2 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-white">
+                        Sold out
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-3 min-h-[3.5rem] text-lg font-black uppercase leading-tight">{item.name}</p>
+                </Link>
+                <p className="mt-1 text-sm">PHP {Number(item.price || 0).toFixed(2)}</p>
+                <p className="mt-1 text-[11px] font-black uppercase tracking-[0.16em] text-[var(--ink)]/60">
+                  Stock: {isRecommendationSoldOut ? 'Sold out' : item.stock ?? 0}
+                </p>
+                <Link
+                  to={`/product/${item.slug}`}
+                  className="mt-3 inline-block text-[11px] font-black uppercase tracking-[0.16em] text-[var(--ink)]/75"
+                >
+                  See more details
+                </Link>
+                <MotionButton
+                  className="mt-auto w-full border border-[var(--ink)] bg-white px-4 py-2 text-[11px] font-black uppercase tracking-[0.16em] transition hover:bg-[var(--ink)] hover:text-white disabled:cursor-not-allowed disabled:border-[#b7b7b7] disabled:bg-[#d9d9d9] disabled:text-[#666] disabled:hover:bg-[#d9d9d9] disabled:hover:text-[#666]"
+                  onClick={() => handleAddRecommendation(item)}
+                  disabled={isRecommendationSoldOut}
+                >
+                  {isRecommendationSoldOut ? 'Sold out' : 'Add to bag'}
+                </MotionButton>
+              </article>
+            )
+          })}
           {recommendations.length === 0 && (
             <div className="border border-[var(--ink)] bg-white p-6 text-sm text-[var(--ink)]/70">
               No recommendations available yet.

@@ -1,4 +1,4 @@
-import aboutPhoto from '../assets/picture1.jpg'
+import aboutPhoto from '../../assets/picture1.jpg'
 
 function About() {
   const contactItems = [

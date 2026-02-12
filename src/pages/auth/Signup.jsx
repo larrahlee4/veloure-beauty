@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { supabase } from '../lib/supabase.js'
-import MotionButton from '../components/MotionButton.jsx'
+import { supabase } from '../../lib/supabase.js'
+import MotionButton from '../../components/MotionButton.jsx'
 
 function Signup() {
   const [email, setEmail] = useState('')

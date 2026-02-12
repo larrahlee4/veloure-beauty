@@ -2,21 +2,22 @@
 import { Routes, Route, useLocation } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 import SiteLayout from './components/SiteLayout.jsx'
-import Home from './pages/Home.jsx'
-import Shop from './pages/Shop.jsx'
-import Product from './pages/Product.jsx'
-import Cart from './pages/Cart.jsx'
-import Login from './pages/Login.jsx'
-import Dashboard from './pages/Dashboard.jsx'
-import About from './pages/About.jsx'
-import Community from './pages/Community.jsx'
-import AdminDashboard from './pages/AdminDashboard.jsx'
-import Search from './pages/Search.jsx'
-import Profile from './pages/Profile.jsx'
-import Signup from './pages/Signup.jsx'
-import Checkout from './pages/Checkout.jsx'
-import CheckoutList from './pages/CheckoutList.jsx'
-import NotFound from './pages/NotFound.jsx'
+import Home from './pages/shop/Home.jsx'
+import Shop from './pages/shop/Shop.jsx'
+import Product from './pages/shop/Product.jsx'
+import Cart from './pages/shop/Cart.jsx'
+import Checkout from './pages/shop/Checkout.jsx'
+import CheckoutList from './pages/shop/CheckoutList.jsx'
+import OrderSuccess from './pages/shop/OrderSuccess.jsx'
+import Search from './pages/shop/Search.jsx'
+import Login from './pages/auth/Login.jsx'
+import Signup from './pages/auth/Signup.jsx'
+import Profile from './pages/auth/Profile.jsx'
+import Dashboard from './pages/auth/Dashboard.jsx'
+import AdminDashboard from './pages/admin/AdminDashboard.jsx'
+import About from './pages/content/About.jsx'
+import Community from './pages/content/Community.jsx'
+import NotFound from './pages/system/NotFound.jsx'
 
 function App() {
   const location = useLocation()
@@ -38,6 +39,7 @@ function App() {
           <Route path="search" element={<Search />} />
           <Route path="checkout-list" element={<CheckoutList />} />
           <Route path="checkout" element={<Checkout />} />
+          <Route path="order-success" element={<OrderSuccess />} />
           <Route path="community" element={<Community />} />
           <Route path="*" element={<NotFound />} />
         </Route>

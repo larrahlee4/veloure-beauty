@@ -1,12 +1,12 @@
 function Dashboard() {
   return (
     <section className="space-y-8">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.4em] text-[var(--gold)]">
+      <div className="border border-[var(--ink)] bg-white px-6 py-8 md:px-10">
+        <p className="text-[11px] font-black uppercase tracking-[0.3em] text-[var(--ink)]/65">
           Dashboard
         </p>
-        <h1 className="font-display text-4xl">Your rituals</h1>
-        <p className="mt-2 text-sm text-[color:var(--ink)]/70">
+        <h1 className="mt-3 text-4xl font-black uppercase leading-none md:text-5xl">Your rituals</h1>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--ink)]/75">
           Track routines, reorder essentials, and view your glow progress.
         </p>
       </div>
@@ -18,10 +18,10 @@ function Dashboard() {
         ].map((item) => (
           <div
             key={item.title}
-            className="rounded-3xl border border-[var(--ink)]/10 bg-white/80 p-6 transition hover:-translate-y-1 hover:shadow-[0_20px_60px_-40px_rgba(59,51,40,0.6)]"
+            className="border border-[var(--ink)] bg-white p-6 transition hover:-translate-y-1"
           >
-            <p className="font-display text-2xl">{item.title}</p>
-            <p className="mt-2 text-sm text-[color:var(--ink)]/70">{item.detail}</p>
+            <p className="text-lg font-black uppercase tracking-[0.08em] text-[var(--ink)]">{item.title}</p>
+            <p className="mt-2 text-sm leading-6 text-[var(--ink)]/75">{item.detail}</p>
           </div>
         ))}
       </div>

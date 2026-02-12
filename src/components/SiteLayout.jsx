@@ -1,6 +1,6 @@
 import { Outlet, NavLink, Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { supabase } from "../lib/supabase.js";
 import { getCart, removeFromCart, updateQty } from "../lib/cart.js";
 import "../App.css";
@@ -19,9 +19,15 @@ function SiteLayout() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [addedToCartModal, setAddedToCartModal] = useState({
+    open: false,
+    name: "",
+    qty: 1,
+  });
   const location = useLocation();
   const navigate = useNavigate();
   const searchInputRef = useRef(null);
+  const addedToCartTimerRef = useRef(null);
   const isHomePage = location.pathname === "/";
 
   const updateCartCount = () => {
@@ -31,15 +37,18 @@ function SiteLayout() {
     setCartCount(totalQty);
   };
 
-  const handleDrawerQty = (id, qty) => {
-    const nextQty = Math.max(1, Number(qty || 1));
-    const items = updateQty(id, nextQty);
+  const handleDrawerQty = async (id, qty) => {
+    const existing = cartItems.find((item) => item.id === id);
+    if (!existing) return;
+    const maxAllowed = Math.max(1, Number(existing.qty || 1) + Number(existing.stock || 0));
+    const nextQty = Math.max(1, Math.min(maxAllowed, Number(qty || 1)));
+    const items = await updateQty(id, nextQty);
     setCartItems(items);
     setCartCount(items.reduce((sum, item) => sum + item.qty, 0));
   };
 
-  const handleDrawerRemove = (id) => {
-    const items = removeFromCart(id);
+  const handleDrawerRemove = async (id) => {
+    const items = await removeFromCart(id);
     setCartItems(items);
     setCartCount(items.reduce((sum, item) => sum + item.qty, 0));
   };
@@ -54,13 +63,33 @@ function SiteLayout() {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       setSignedIn(!!session?.user);
     });
+    const onCartAdded = (event) => {
+      const detail = event?.detail ?? {};
+      if (detail.source === "product-detail") return;
+      setAddedToCartModal({
+        open: true,
+        name: detail.name ?? "Item",
+        qty: Number(detail.qty || 1),
+      });
+      if (addedToCartTimerRef.current) {
+        clearTimeout(addedToCartTimerRef.current);
+      }
+      addedToCartTimerRef.current = setTimeout(() => {
+        setAddedToCartModal((prev) => ({ ...prev, open: false }));
+      }, 1700);
+    };
 
     window.addEventListener("cartChanged", updateCartCount);
+    window.addEventListener("cartAdded", onCartAdded);
     init();
 
     return () => {
       sub?.subscription?.unsubscribe();
       window.removeEventListener("cartChanged", updateCartCount);
+      window.removeEventListener("cartAdded", onCartAdded);
+      if (addedToCartTimerRef.current) {
+        clearTimeout(addedToCartTimerRef.current);
+      }
     };
   }, []);
 
@@ -238,26 +267,6 @@ function SiteLayout() {
             </div>
           </div>
 
-          <div className="mt-4 border-t border-[var(--ink)]/35 pt-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[var(--ink)]/55">
-              Suggested search terms
-            </p>
-            <div className="mt-3 flex flex-wrap gap-x-7 gap-y-2">
-              {["Collections", "About", "Products", "Help & FAQ", "Shipping & Delivery"].map(
-                (term) => (
-                  <button
-                    key={term}
-                    type="button"
-                    className="text-sm text-[var(--ink)]/85 transition hover:text-[var(--ink)]"
-                    onClick={() => setSearchQuery(term)}
-                  >
-                    {term}
-                  </button>
-                ),
-              )}
-            </div>
-          </div>
-
           {(searchLoading || searchResults.length > 0 || searchQuery.trim()) && (
             <div className="mt-4 border-t border-[var(--ink)]/35 pt-3">
               {searchLoading && (
@@ -351,6 +360,7 @@ function SiteLayout() {
                               <input
                                 type="number"
                                 min="1"
+                                max={Math.max(1, Number(item.qty || 1) + Number(item.stock || 0))}
                                 value={item.qty}
                                 onChange={(event) =>
                                   handleDrawerQty(item.id, event.target.value)
@@ -405,6 +415,76 @@ function SiteLayout() {
         </div>
       )}
 
+      <AnimatePresence>
+        {addedToCartModal.open && (
+          <motion.div
+            className="fixed inset-0 z-[95] flex items-center justify-center bg-black/35 p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="w-full max-w-sm border border-[var(--ink)] bg-white px-6 py-6 text-center shadow-2xl"
+              initial={{ opacity: 0, y: 16, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 12, scale: 0.98 }}
+              transition={{ duration: 0.2 }}
+            >
+              <motion.div
+                className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-[var(--ink)] bg-[var(--sand)]/25"
+                initial={{ scale: 0.9 }}
+                animate={{ scale: 1 }}
+                transition={{ duration: 0.22 }}
+              >
+                <svg
+                  width="34"
+                  height="34"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="var(--ink)"
+                  strokeWidth="2.1"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <motion.path
+                    d="m5 13 4 4L19 7"
+                    initial={{ pathLength: 0 }}
+                    animate={{ pathLength: 1 }}
+                    transition={{ duration: 0.35, ease: "easeOut" }}
+                  />
+                </svg>
+              </motion.div>
+              <p className="text-[11px] font-black uppercase tracking-[0.25em] text-[var(--ink)]/65">
+                Added to bag
+              </p>
+              <p className="mt-2 text-sm text-[var(--ink)]/80">
+                {addedToCartModal.name} x{addedToCartModal.qty}
+              </p>
+              <div className="mt-5 grid gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  className="border border-[var(--ink)] px-4 py-2 text-[11px] font-black uppercase tracking-[0.14em]"
+                  onClick={() =>
+                    setAddedToCartModal((prev) => ({ ...prev, open: false }))
+                  }
+                >
+                  Continue
+                </button>
+                <Link
+                  to="/cart"
+                  className="border border-[var(--ink)] bg-[var(--ink)] px-4 py-2 text-[11px] font-black uppercase tracking-[0.14em] text-white"
+                  onClick={() =>
+                    setAddedToCartModal((prev) => ({ ...prev, open: false }))
+                  }
+                >
+                  View cart
+                </Link>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <main className={isHomePage ? "flex-1 p-0" : "flex-1 px-6 pb-20 pt-10 md:px-16"}>
         <motion.div
           key={location.pathname}
@@ -417,31 +497,16 @@ function SiteLayout() {
         </motion.div>
       </main>
 
-      {!isHomePage && (
-        <footer className="border-t border-[var(--ink)]/10 px-6 py-10 text-sm md:px-16">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p className="font-display text-2xl font-bold">Veloure Beauty</p>
-              <p className="text-[color:var(--ink)]/70">Clean beauty, crafted daily.</p>
-            </div>
-            <div className="font-bold flex flex-wrap gap-6 text-s uppercase tracking-[0.2em] text-[var(--taupe)]">
-              <span className="cursor-pointer transition hover:text-[var(--gold)]">
-                Care
-              </span>
-              <span className="cursor-pointer transition hover:text-[var(--gold)]">
-                Community
-              </span>
-              <span className="cursor-pointer transition hover:text-[var(--gold)]">
-                Support
-              </span>
-            </div>
+      <footer className="border-t border-white/15 bg-[var(--ink)] px-6 py-10 text-sm text-white md:px-16">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="font-display text-2xl font-bold">Veloure Beauty</p>
+            <p className="text-white/70">Clean beauty, crafted daily.</p>
           </div>
-        </footer>
-      )}
+        </div>
+      </footer>
     </div>
   );
 }
 
 export default SiteLayout;
-
-

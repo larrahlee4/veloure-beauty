@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { supabase } from '../lib/supabase.js'
-import MotionButton from '../components/MotionButton.jsx'
+import { supabase } from '../../lib/supabase.js'
+import MotionButton from '../../components/MotionButton.jsx'
 
 function Profile() {
   const [orders, setOrders] = useState([])

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { supabase } from '../lib/supabase.js'
-import { addToCart } from '../lib/cart.js'
-import MotionButton from '../components/MotionButton.jsx'
+import { supabase } from '../../lib/supabase.js'
+import { addToCart } from '../../lib/cart.js'
+import MotionButton from '../../components/MotionButton.jsx'
 import { motion } from 'framer-motion'
 
 function Shop() {
@@ -14,7 +14,7 @@ function Shop() {
     const load = async () => {
       const { data } = await supabase
         .from('products')
-        .select('id,name,slug,category,description,price,image_url,is_featured,created_at')
+        .select('id,name,slug,category,description,price,image_url,is_featured,created_at,stock')
         .order('created_at', { ascending: false })
       setProducts(data ?? [])
     }
@@ -40,6 +40,18 @@ function Shop() {
     }
     return sorted
   }, [category, products, sort])
+
+  const handleAddToCart = async (item, qty = 1) => {
+    const result = await addToCart(item, qty)
+    setProducts((prev) =>
+      prev.map((product) =>
+        product.id === item.id
+          ? { ...product, stock: result.remainingStock }
+          : product
+      )
+    )
+    if (result.addedQty <= 0) return
+  }
 
   return (
     <section className="space-y-8">
@@ -99,37 +111,51 @@ function Shop() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {visible.map((item, index) => (
-          <motion.article
-            key={item.id}
-            className="border border-[var(--ink)] bg-white p-4"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: index * 0.04 }}
-            whileHover={{ y: -4 }}
-          >
-            <Link to={`/product/${item.slug}`} className="group block">
-              <img
-                className="aspect-square w-full border border-[var(--ink)] object-cover transition duration-300 group-hover:scale-[1.02]"
-                src={item.image_url}
-                alt={item.name}
-              />
-            </Link>
-            <p className="mt-4 text-xl font-black uppercase leading-tight">{item.name}</p>
-            <p className="mt-2 min-h-[44px] text-sm leading-5 text-[var(--ink)]/75">
-              {item.description || 'Clean formula with high-performance results.'}
-            </p>
-            <div className="mt-4 flex items-center justify-between gap-3">
-              <span className="text-base font-black">PHP {Number(item.price || 0).toFixed(2)}</span>
-              <MotionButton
-                className="border border-[var(--ink)] bg-white px-3 py-2 text-[11px] font-black uppercase tracking-[0.16em] transition hover:bg-[var(--ink)] hover:text-white"
-                onClick={() => addToCart(item, 1)}
-              >
-                Add to bag
-              </MotionButton>
-            </div>
-          </motion.article>
-        ))}
+        {visible.map((item, index) => {
+          const isSoldOut = Number(item.stock ?? 0) <= 0
+          return (
+            <motion.article
+              key={item.id}
+              className="border border-[var(--ink)] bg-white p-4"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, delay: index * 0.04 }}
+              whileHover={{ y: -4 }}
+            >
+              <Link to={`/product/${item.slug}`} className="group block">
+                <div className="relative">
+                  <img
+                    className="aspect-square w-full border border-[var(--ink)] object-cover transition duration-300 group-hover:scale-[1.02]"
+                    src={item.image_url}
+                    alt={item.name}
+                  />
+                  {isSoldOut && (
+                    <span className="absolute left-3 top-3 border border-white bg-black/85 px-2 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-white">
+                      Sold out
+                    </span>
+                  )}
+                </div>
+              </Link>
+              <p className="mt-4 text-xl font-black uppercase leading-tight">{item.name}</p>
+              <p className="mt-2 min-h-[44px] text-sm leading-5 text-[var(--ink)]/75">
+                {item.description || 'Clean formula with high-performance results.'}
+              </p>
+              <p className="mt-2 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--ink)]/60">
+                Stock: {isSoldOut ? 'Sold out' : item.stock ?? 0}
+              </p>
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <span className="text-base font-black">PHP {Number(item.price || 0).toFixed(2)}</span>
+                <MotionButton
+                  className="border border-[var(--ink)] bg-white px-3 py-2 text-[11px] font-black uppercase tracking-[0.16em] transition hover:bg-[var(--ink)] hover:text-white disabled:cursor-not-allowed disabled:border-[#b7b7b7] disabled:bg-[#d9d9d9] disabled:text-[#666] disabled:hover:bg-[#d9d9d9] disabled:hover:text-[#666]"
+                  onClick={() => handleAddToCart(item, 1)}
+                  disabled={isSoldOut}
+                >
+                  {isSoldOut ? 'Sold out' : 'Add to bag'}
+                </MotionButton>
+              </div>
+            </motion.article>
+          )
+        })}
 
         {visible.length === 0 && (
           <div className="md:col-span-2 lg:col-span-4 border border-[var(--ink)] bg-white p-10 text-center text-sm text-[var(--ink)]/70">
